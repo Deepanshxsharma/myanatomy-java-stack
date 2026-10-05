@@ -1,142 +1,103 @@
 # Multi-Threaded CSV File Processor
 
-A beginner-level Java project that reads multiple CSV files at the same time using threads, and produces a combined sales report.
+A concurrent Java application that reads multiple CSV sales files in parallel with a thread pool, merges the results, and produces an aggregated sales report on the console and in `report.txt`.
+
+![Java](https://img.shields.io/badge/Java-11%2B-ED8B00?logo=openjdk&logoColor=white)
+![Module](https://img.shields.io/badge/Module-2-blue)
 
 ---
 
-## What This Project Does
+## Features
 
-- Reads 3 CSV sales files **at the same time** (using multiple threads)
-- Uses a **Builder Pattern** to set up configuration
-- Combines all data and prints a **Sales Report**
-- Saves the report to `report.txt`
+- **Parallel processing:** each CSV file is parsed on its own worker thread using a fixed-size `ExecutorService`
+- **Builder-based configuration:** thread count, input folder, output file, header handling, and delimiter
+- **Aggregated analytics:** total revenue, total quantity, averages, top-selling product, and top revenue category
+- **Category breakdowns:** revenue and units sold per category
+- **Fault tolerance:** malformed rows are logged and skipped without stopping the run
+- **Auto-discovery:** every `.csv` file in `data/` is processed automatically
 
 ---
 
-## Requirements
-
-You only need **ONE thing** installed:
-
-### ✅ Java JDK 8 or higher
-
-> If you already have Java installed, you can skip the install step below.
-
-### How to Check if Java is Already Installed
-
-1. Press `Windows + R`
-2. Type `cmd` and press **Enter**
-3. In the black window, type:
+## How It Works
 
 ```
-java -version
+                    ┌──────────────────────────┐
+                    │  ProcessorConfig.Builder │
+                    └────────────┬─────────────┘
+                                 ▼
+ data/*.csv ──▶  ExecutorService (fixed thread pool)
+                 ├── CsvFileProcessor ──▶ Future<List<SalesRecord>>
+                 ├── CsvFileProcessor ──▶ Future<List<SalesRecord>>
+                 └── CsvFileProcessor ──▶ Future<List<SalesRecord>>
+                                 │
+                                 ▼
+                       ReportAggregator ──▶ console + report.txt
 ```
 
-If you see something like `java version "17.0.x"` → **Java is already installed. Skip to Step 2.**
-
-If you see `'java' is not recognized...` → **You need to install Java first.**
-
----
-
-## Step 1 — Install Java (Only if Not Installed)
-
-1. Go to this website:
-   👉 https://www.oracle.com/java/technologies/downloads/
-
-2. Download **JDK 17** (or any version 8 and above) for **Windows x64**
-
-3. Run the downloaded `.exe` installer and click **Next → Next → Finish**
-
-4. After installing, open `cmd` again and type `java -version` to confirm it works.
+1. Build an immutable `ProcessorConfig` with the Builder pattern.
+2. Find every `.csv` file in the input folder.
+3. Submit one `CsvFileProcessor` (a `Callable`) per file to the thread pool.
+4. Collect each file's records through its `Future`.
+5. Shut down the pool cleanly.
+6. Aggregate the records and write the report.
 
 ---
 
-## Step 2 — Download / Copy This Project
-
-Copy the entire `MultiThreadedFileProcessor` folder to your computer.
-
-Make sure the folder looks like this:
+## Project Structure
 
 ```
 MultiThreadedFileProcessor/
 ├── src/
-│   ├── Main.java
-│   ├── config/
-│   │   └── ProcessorConfig.java
-│   ├── model/
-│   │   └── SalesRecord.java
-│   ├── processor/
-│   │   └── CsvFileProcessor.java
-│   └── report/
-│       └── ReportAggregator.java
+│   ├── Main.java                       # Entry point and orchestration
+│   ├── config/ProcessorConfig.java     # Immutable config + Builder
+│   ├── model/SalesRecord.java          # One CSV row
+│   ├── processor/CsvFileProcessor.java # Callable that parses one file
+│   └── report/ReportAggregator.java    # Aggregation and report output
 ├── data/
 │   ├── sales_january.csv
 │   ├── sales_february.csv
 │   └── sales_march.csv
-├── run.bat
-└── README.md
+├── report.txt                          # Sample generated report
+├── run.sh                              # Build & run (macOS / Linux)
+└── run.bat                             # Build & run (Windows)
 ```
 
 ---
 
-## Step 3 — Run the Project
+## Getting Started
 
-### Easiest Method — Double Click
+**Requirements:** JDK 11 or later (`java -version` to check)
 
-1. Open the `MultiThreadedFileProcessor` folder
-2. **Double-click** the file called `run.bat`
-3. A black window will open, compile the code, and run it automatically
+### Quick Run
 
-That's it! ✅
+```bash
+cd "Module - 2/MultiThreadedFileProcessor"
 
----
-
-### Alternative Method — Using Command Prompt
-
-1. Open the `MultiThreadedFileProcessor` folder
-2. Click on the **address bar** at the top of the folder window
-3. Type `cmd` and press **Enter** (this opens Command Prompt inside the folder)
-4. Type this command and press **Enter**:
-
-```
-javac -d out src\Main.java src\model\SalesRecord.java src\config\ProcessorConfig.java src\processor\CsvFileProcessor.java src\report\ReportAggregator.java
+./run.sh      # macOS / Linux
+run.bat       # Windows (or double-click it)
 ```
 
-5. Then type this and press **Enter**:
+### Manual Build
 
-```
+Run these from the project root so the `data/` folder is found.
+
+```bash
+javac -d out src/Main.java src/model/SalesRecord.java src/config/ProcessorConfig.java \
+    src/processor/CsvFileProcessor.java src/report/ReportAggregator.java
 java -cp out Main
 ```
 
+On Windows, use `\` instead of `/` in the paths.
+
 ---
 
-## Expected Output
-
-When the program runs, you will see something like this:
+## Sample Output
 
 ```
-============================================
-  Multi-Threaded CSV File Processor
-============================================
-
-Configuration: ProcessorConfig{threads=3, inputFolder='data/', ...}
-
-Found 3 CSV file(s) to process:
-
-  -> sales_february.csv
-  -> sales_january.csv
-  -> sales_march.csv
-
-Processing files concurrently...
-
-[Thread: pool-1-thread-1] Processing: data\sales_february.csv
-[Thread: pool-1-thread-2] Processing: data\sales_january.csv
-[Thread: pool-1-thread-3] Processing: data\sales_march.csv
-[Thread: pool-1-thread-2] Done! Parsed 8 records from: data\sales_january.csv
-[Thread: pool-1-thread-3] Done! Parsed 9 records from: data\sales_march.csv
-[Thread: pool-1-thread-1] Done! Parsed 8 records from: data\sales_february.csv
-
-All threads finished. Thread pool shut down.
-
+[Thread: pool-1-thread-1] Processing: data/sales_february.csv
+[Thread: pool-1-thread-2] Processing: data/sales_january.csv
+[Thread: pool-1-thread-3] Processing: data/sales_march.csv
+...
 =======================================================
        SALES AGGREGATED REPORT
 =======================================================
@@ -144,54 +105,45 @@ All threads finished. Thread pool shut down.
   Total Records Processed : 25
   Total Quantity Sold     : 915 units
   Total Revenue           : $57,650.85
-  ...
+  Average Revenue/Record  : $2,306.03
 
-Report saved to: report.txt
+  Top-Selling Product     : Socks
+  Top Revenue Category    : Electronics
 ```
 
-The full report is also saved in a file called **`report.txt`** inside the project folder.
+The full report, including per-category breakdowns, is saved to `report.txt`.
+
+---
+
+## Input Format
+
+Each CSV file must have a header row followed by data rows:
+
+```csv
+product,category,quantity,price
+Laptop,Electronics,5,999.99
+T-Shirt,Clothing,20,19.99
+```
+
+Drop additional `.csv` files into `data/` and they'll be picked up on the next run.
 
 ---
 
 ## Troubleshooting
 
 | Problem | Fix |
-|---|---|
-| `'java' is not recognized` | Java is not installed. Go to Step 1 above. |
-| `'javac' is not recognized` | You installed JRE instead of JDK. Re-install **JDK** from the link in Step 1. |
-| `No CSV files found` | Make sure the `data/` folder is inside `MultiThreadedFileProcessor/` and has `.csv` files. |
-| Black window closes too fast | Right-click `run.bat` and click **"Run as administrator"**, or use the Command Prompt method instead. |
+|---------|-----|
+| `java` / `javac` not found | Install a JDK (not just a JRE) and make sure it's on your `PATH` |
+| `No CSV files found` | Run from the project root; confirm `data/` contains `.csv` files |
+| `permission denied: ./run.sh` | Run `chmod +x run.sh` once |
+| Window closes instantly (Windows) | Run `run.bat` from Command Prompt instead of double-clicking |
 
 ---
 
-## Project Files Explained (Simple)
+## Concepts Demonstrated
 
-| File | Purpose |
-|---|---|
-| `Main.java` | Starting point — creates threads and runs everything |
-| `ProcessorConfig.java` | Settings (threads, folder, etc.) using Builder Pattern |
-| `SalesRecord.java` | Represents one row of data from a CSV file |
-| `CsvFileProcessor.java` | One thread reads one CSV file using this |
-| `ReportAggregator.java` | Combines all data and creates the final report |
-| `data/*.csv` | Sample sales data files |
-| `run.bat` | One-click script to compile and run on Windows |
-
----
-
-## Adding Your Own CSV Files
-
-You can add more `.csv` files to the `data/` folder.
-
-Each file must follow this format (first line is the header):
-
-```
-product,category,quantity,price
-Laptop,Electronics,5,999.99
-T-Shirt,Clothing,20,19.99
-```
-
-The program will automatically detect and process all `.csv` files in the `data/` folder.
-
----
-
-*Built with Java — No external libraries needed.*
+- `ExecutorService`, `Callable`, and `Future` for concurrent tasks
+- Builder pattern for immutable configuration objects
+- Stream API and `Map.merge` for aggregation
+- `try-with-resources` for buffered file reading and writing
+- Packaged source layout (`config`, `model`, `processor`, `report`)
